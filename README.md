@@ -4,6 +4,5 @@
 SK하이닉스 AI 해커톤 2026 지원용으로 만들었어요.
 
 - 플레이: 클릭/탭으로 이동, 방향키·WASD, Space로 조사
-- 전체 포트폴리오: https://profile.chelina.dev/
 
 의존성 없는 단일 `index.html`입니다.
