@@ -1,0 +1,793 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>나연이의 미니룸</title>
+<meta name="description" content="방 안의 물건을 조사해 프로젝트 다이를 모으고 HBM 12단을 쌓는 고나연의 게임형 포트폴리오 — SK하이닉스 AI 해커톤 2026 지원용">
+<meta property="og:title" content="나연이의 미니룸 — HBM 12단 쌓기">
+<meta property="og:description" content="Cloud Architect 고나연의 게임형 포트폴리오. 물건 6개를 조사해 HBM을 완성하세요.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#4a2c3a; --ink-soft:#7a5566;
+  --bg:#ffe9f1; --paper:#fffaf3;
+  --pink:#ff8fab; --pink-soft:#ffd6e4;
+  --mint:#bff0e0; --sky:#cfe9ff; --lilac:#e3d7ff; --butter:#fff1c4;
+  --sk-red:#ea002c; --sk-orange:#f47725;
+  --gold:#ffcf3f;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--ink);font-family:"Gowun Dodum",system-ui,sans-serif;
+  background-image:radial-gradient(#ffd0e1 1.5px,transparent 1.5px);background-size:22px 22px;
+  -webkit-tap-highlight-color:transparent;user-select:none}
+button{font:inherit;color:inherit;cursor:pointer}
+.jua{font-family:"Jua","Gowun Dodum",sans-serif;font-weight:400}
+
+/* ---------- HUD ---------- */
+#hud{position:fixed;left:0;right:0;top:0;height:64px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 16px;z-index:50;pointer-events:none}
+#hud>*{pointer-events:auto}
+.nameplate{display:flex;align-items:center;gap:10px;background:#fff;border:3px solid var(--ink);border-radius:999px;
+  padding:4px 14px 4px 4px;box-shadow:0 4px 0 var(--ink)}
+.nameplate .ava{width:38px;height:38px;border-radius:50%;background:var(--pink-soft);border:2px solid var(--ink);overflow:hidden;display:grid;place-items:center}
+.nameplate b{font-family:Jua,sans-serif;font-weight:400;font-size:18px;display:block;line-height:1.05}
+.nameplate small{font-size:11px;color:var(--ink-soft)}
+.hud-right{display:flex;align-items:center;gap:8px}
+.hbm{display:flex;align-items:center;gap:10px;background:#fff;border:3px solid var(--ink);border-radius:16px;padding:6px 12px;box-shadow:0 4px 0 var(--ink)}
+.hbm .tower{display:flex;flex-direction:column-reverse;gap:1px;width:34px;padding:2px;border:2px solid var(--ink);border-radius:5px;background:#f4eef2}
+.hbm .tower i{display:block;height:3px;border-radius:1px;background:#e2d6dd;transition:background .3s}
+.hbm .count{font-family:Jua,sans-serif;font-size:20px;line-height:1}
+.hbm .count small{display:block;font-size:11px;color:var(--ink-soft);font-family:"Gowun Dodum"}
+.iconbtn{width:44px;height:44px;border-radius:50%;background:#fff;border:3px solid var(--ink);box-shadow:0 4px 0 var(--ink);font-size:18px;display:grid;place-items:center}
+.iconbtn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
+
+#hint{position:fixed;left:50%;bottom:10px;transform:translateX(-50%);z-index:40;font-size:13px;background:rgba(255,255,255,.85);
+  border:2px solid var(--ink);border-radius:999px;padding:4px 14px;white-space:nowrap;max-width:calc(100% - 32px);overflow:hidden;text-overflow:ellipsis}
+
+/* ---------- Stage ---------- */
+#viewport{position:fixed;left:0;right:0;top:64px;bottom:40px}
+#stage{position:absolute;left:50%;top:50%;width:1000px;height:640px;transform-origin:center;border:5px solid var(--ink);
+  border-radius:28px;overflow:hidden;background:#ffe6ef;box-shadow:0 10px 0 var(--ink),0 18px 40px rgba(74,44,58,.25);touch-action:manipulation}
+#room{position:absolute;inset:0;display:block}
+.obj{position:absolute;transform:translate(-50%,-100%);background:none;border:0;padding:0;outline:none}
+.obj svg{display:block;overflow:visible;transition:transform .2s, filter .2s}
+.obj:hover svg,.obj:focus-visible svg,.obj.near svg{transform:translateY(-4px) scale(1.03);filter:drop-shadow(0 0 10px #fff) drop-shadow(0 0 4px #ffcf3f)}
+.obj:focus-visible{outline:3px dashed var(--sk-orange);outline-offset:4px;border-radius:12px}
+.marker{position:absolute;left:50%;top:-38px;transform:translateX(-50%);width:30px;height:30px;border-radius:50%;
+  background:var(--gold);border:3px solid var(--ink);font-family:Jua,sans-serif;font-size:18px;display:grid;place-items:center;
+  animation:bob 1s ease-in-out infinite;pointer-events:none}
+.obj.done .marker{background:var(--mint);animation:none}
+.obj .label{position:absolute;left:50%;bottom:-24px;transform:translateX(-50%);background:#fff;border:2px solid var(--ink);border-radius:8px;
+  font-size:12px;padding:1px 8px;white-space:nowrap;font-family:Jua,sans-serif;opacity:0;transition:opacity .2s;pointer-events:none}
+.obj:hover .label,.obj.near .label,.obj:focus-visible .label{opacity:1}
+@keyframes bob{50%{transform:translate(-50%,-6px)}}
+
+#hero{position:absolute;transform:translate(-50%,-100%);pointer-events:none}
+#hero .flip{transition:transform .12s}
+#hero.left .flip{transform:scaleX(-1)}
+#hero.walk .legL{animation:step .28s ease-in-out infinite alternate}
+#hero.walk .legR{animation:step .28s ease-in-out infinite alternate-reverse}
+#hero.walk .bodyg{animation:hop .28s ease-in-out infinite alternate}
+@keyframes step{from{transform:translateY(0)}to{transform:translateY(-5px)}}
+@keyframes hop{to{transform:translateY(-3px)}}
+.eyes{animation:blink 4s infinite;transform-origin:45px 50px}
+@keyframes blink{0%,94%,100%{transform:scaleY(1)}97%{transform:scaleY(.1)}}
+.bubble{position:absolute;left:50%;bottom:138px;transform:translateX(-50%);background:#fff;border:3px solid var(--ink);border-radius:16px;
+  padding:8px 12px;font-size:15px;line-height:1.4;width:max-content;max-width:280px;text-align:center;font-family:Jua,sans-serif;
+  box-shadow:0 3px 0 var(--ink)}
+.bubble:after{content:"";position:absolute;left:50%;bottom:-11px;width:16px;height:16px;background:#fff;border-right:3px solid var(--ink);border-bottom:3px solid var(--ink);transform:translateX(-50%) rotate(45deg)}
+.bubble.hidden{display:none}
+.led{animation:led 1.2s steps(2) infinite}
+.led.d2{animation-delay:.4s}.led.d3{animation-delay:.8s}
+@keyframes led{50%{opacity:.25}}
+.chartline{stroke-dasharray:220;stroke-dashoffset:220;animation:draw 3s ease-out infinite}
+@keyframes draw{60%,100%{stroke-dashoffset:0}}
+.cloud{animation:drift 18s linear infinite}
+@keyframes drift{from{transform:translateX(-40px)}to{transform:translateX(170px)}}
+.tap{position:absolute;width:26px;height:10px;border:3px solid var(--sk-orange);border-radius:50%;transform:translate(-50%,-50%);animation:tap .5s ease-out forwards;pointer-events:none}
+@keyframes tap{to{width:60px;height:22px;opacity:0}}
+
+/* ---------- Window dialog ---------- */
+.overlay{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:16px;background:rgba(74,44,58,.35);backdrop-filter:blur(2px)}
+.overlay.hidden{display:none}
+.win{width:min(560px,100%);max-height:calc(100dvh - 32px);display:flex;flex-direction:column;background:var(--paper);border:4px solid var(--ink);
+  border-radius:20px;box-shadow:0 8px 0 var(--ink);overflow:hidden;animation:pop .28s cubic-bezier(.3,1.6,.5,1)}
+@keyframes pop{from{transform:scale(.7);opacity:0}}
+.titlebar{display:flex;align-items:center;gap:8px;padding:8px 10px 8px 14px;border-bottom:4px solid var(--ink);background:var(--c,var(--pink))}
+.titlebar .dots{display:flex;gap:5px}.titlebar .dots i{width:11px;height:11px;border-radius:50%;border:2px solid var(--ink);background:#fff}
+.titlebar .t{flex:1;font-family:Jua,sans-serif;font-size:16px}
+.titlebar .x{width:32px;height:32px;border-radius:10px;border:3px solid var(--ink);background:#fff;font-family:Jua,sans-serif;font-size:18px;line-height:1}
+.win-body{padding:18px 20px 20px;overflow:auto}
+.tag{display:inline-flex;gap:6px;align-items:center;font-size:12px;background:#fff;border:2px solid var(--ink);border-radius:999px;padding:3px 10px 3px 4px;margin-bottom:10px}
+.tag b{background:linear-gradient(90deg,var(--sk-red),var(--sk-orange));color:#fff;border-radius:999px;padding:1px 8px;font-weight:400;font-family:Jua,sans-serif}
+.win h2{font-family:Jua,sans-serif;font-weight:400;font-size:30px;margin:0;line-height:1.1}
+.win .sub{margin:4px 0 2px;font-size:16px}
+.win .meta{margin:0 0 14px;font-size:12px;color:var(--ink-soft)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:14px}
+.stat{background:#fff;border:3px solid var(--ink);border-radius:14px;padding:8px 10px;text-align:center}
+.stat b{display:block;font-family:Jua,sans-serif;font-weight:400;font-size:22px;color:var(--sk-orange);line-height:1.15}
+.stat span{font-size:12px}
+.win .body{margin:0 0 8px;line-height:1.6}
+.points{margin:0;padding-left:20px;line-height:1.6;font-size:14px}
+.points li{margin:3px 0}
+.note{font-size:11px;color:var(--ink-soft);margin:8px 0 0}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:46px;padding:0 18px;border-radius:14px;border:3px solid var(--ink);
+  background:#fff;box-shadow:0 4px 0 var(--ink);font-family:Jua,sans-serif;font-size:17px;text-decoration:none;color:var(--ink)}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
+.btn.primary{background:linear-gradient(90deg,var(--sk-red),var(--sk-orange));color:#fff;flex:1}
+.btn.primary:hover{filter:brightness(1.06)}
+.fly{position:fixed;width:34px;height:12px;border-radius:3px;border:2px solid var(--ink);z-index:200;pointer-events:none}
+
+/* ---------- Title ---------- */
+#title{background:var(--bg);background-image:radial-gradient(#ffc4d8 2px,transparent 2px);background-size:26px 26px;backdrop-filter:none}
+.title-card{text-align:center;width:min(560px,100%)}
+.logo{font-family:Jua,sans-serif;font-size:clamp(46px,11vw,86px);line-height:1;margin:0;letter-spacing:1px}
+.logo span{display:inline-block;-webkit-text-stroke:3px var(--ink);paint-order:stroke fill;text-shadow:0 5px 0 var(--ink);animation:wave 1.6s ease-in-out infinite}
+@keyframes wave{50%{transform:translateY(-8px)}}
+.edition{display:inline-block;margin:18px 0 6px;background:#fff;border:3px solid var(--ink);border-radius:999px;padding:6px 16px;font-family:Jua,sans-serif;font-size:15px;box-shadow:0 3px 0 var(--ink)}
+.edition b{color:var(--sk-red);font-weight:400}
+.pitch{font-size:15px;line-height:1.6;margin:10px auto 18px;max-width:440px}
+.loader{width:min(340px,90%);height:26px;margin:0 auto 18px;border:3px solid var(--ink);border-radius:999px;background:#fff;overflow:hidden;position:relative}
+.loader i{position:absolute;inset:0;width:0;background:repeating-linear-gradient(45deg,var(--pink) 0 12px,#ffb3c8 12px 24px);transition:width .1s}
+.loader span{position:absolute;inset:0;display:grid;place-items:center;font-family:Jua,sans-serif;font-size:14px}
+#startBtn{font-size:24px;padding:0 40px;min-height:58px;flex:none}
+#startBtn:disabled{opacity:.4;cursor:wait}
+.skip{display:block;margin:14px auto 0;background:none;border:0;text-decoration:underline;font-size:14px;color:var(--ink-soft)}
+
+/* ---------- Ending ---------- */
+.end{width:min(760px,100%)}
+.end-grid{display:grid;grid-template-columns:260px 1fr;gap:18px;align-items:center}
+.end h2{font-size:34px}
+.stackwrap svg{width:100%;height:auto;display:block}
+.stackwrap .ly{opacity:0;animation:drop .45s cubic-bezier(.3,1.4,.5,1) forwards}
+@keyframes drop{from{opacity:0;transform:translateY(-70px)}to{opacity:1;transform:none}}
+.proof{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:6px}
+.proof li{display:grid;grid-template-columns:22px 1fr;gap:8px;font-size:13.5px;line-height:1.45;background:#fff;border:2px solid var(--ink);border-radius:12px;padding:7px 10px}
+.proof li b{font-family:Jua,sans-serif;font-weight:400}
+.proof .chk{width:20px;height:20px;border-radius:6px;border:2px solid var(--ink);display:grid;place-items:center;font-size:12px;margin-top:1px}
+.motto{margin:14px 0 0;padding:12px 14px;border-left:6px solid var(--sk-orange);background:#fff;border-radius:0 12px 12px 0;font-size:14px;line-height:1.6}
+.url{font-family:ui-monospace,Menlo,monospace;font-size:13px;opacity:.9}
+.confetti{position:fixed;top:-20px;width:10px;height:14px;z-index:150;pointer-events:none;animation:fall linear forwards}
+@keyframes fall{to{transform:translateY(110vh) rotate(720deg)}}
+
+@media (max-width:640px){
+  .end-grid{grid-template-columns:1fr}
+  .stackwrap{max-width:220px;margin:0 auto}
+  .nameplate small{display:none}
+  .win h2{font-size:25px}
+}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;animation-iteration-count:1!important}}
+</style>
+</head>
+<body>
+
+<header id="hud">
+  <div class="nameplate">
+    <div class="ava"><svg viewBox="10 8 70 70" width="38" height="38" aria-hidden="true"><use href="#headArt"/></svg></div>
+    <div><b>고나연</b><small>Cloud Architect · AI Native</small></div>
+  </div>
+  <div class="hud-right">
+    <div class="hbm" title="모은 다이로 쌓는 HBM">
+      <div class="tower" id="tower" aria-hidden="true"></div>
+      <div class="count"><span id="cnt">0</span>/12<small>HBM 적층</small></div>
+    </div>
+    <button class="iconbtn" id="muteBtn" aria-label="소리 끄기/켜기">♪</button>
+  </div>
+</header>
+
+<main id="viewport">
+  <div id="stage" aria-label="나연이의 미니룸">
+    <svg id="room" viewBox="0 0 1000 640" aria-hidden="true">
+      <defs>
+        <pattern id="wallp" width="44" height="44" patternUnits="userSpaceOnUse">
+          <rect width="44" height="44" fill="#ffe6ef"/>
+          <circle cx="11" cy="11" r="3" fill="#ffc4d8"/>
+          <path d="M33 29c-2-3-6-1-4 2l4 4 4-4c2-3-2-5-4-2z" fill="#ffb3c8"/>
+        </pattern>
+        <pattern id="stripe" width="24" height="10" patternUnits="userSpaceOnUse">
+          <rect width="24" height="10" fill="#ffd0e0"/><rect width="12" height="10" fill="#ffc4d8"/>
+        </pattern>
+        <pattern id="tile" width="80" height="80" patternUnits="userSpaceOnUse" patternTransform="skewX(-18)">
+          <rect width="80" height="80" fill="#fff3d6"/>
+          <rect width="40" height="40" fill="#ffe6b0"/><rect x="40" y="40" width="40" height="40" fill="#ffe6b0"/>
+        </pattern>
+        <linearGradient id="floorShade" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#c98a5a" stop-opacity=".22"/><stop offset=".35" stop-color="#c98a5a" stop-opacity="0"/>
+        </linearGradient>
+        <linearGradient id="skyG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9fd4ff"/><stop offset="1" stop-color="#e6f4ff"/></linearGradient>
+        <linearGradient id="skG" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ea002c"/><stop offset="1" stop-color="#f47725"/></linearGradient>
+        <clipPath id="winClip"><rect x="216" y="62" width="148" height="146" rx="6"/></clipPath>
+
+        <!-- Hero head, reused in HUD avatar -->
+        <g id="headArt">
+          <path d="M13 50Q12 12 45 11Q78 12 77 50L77 70Q70 75 63 66L63 44Q45 38 27 44L27 66Q20 75 13 70Z" fill="#3b2530" stroke="#4a2c3a" stroke-width="3" stroke-linejoin="round"/>
+          <circle cx="45" cy="46" r="27" fill="#ffe2cf" stroke="#4a2c3a" stroke-width="3"/>
+          <path d="M18 42Q21 15 45 14Q69 15 72 42Q61 31 51 36Q45 27 37 36Q27 31 18 42Z" fill="#3b2530"/>
+          <g class="eyes"><ellipse cx="35" cy="50" rx="4" ry="5.5" fill="#3b2530"/><ellipse cx="55" cy="50" rx="4" ry="5.5" fill="#3b2530"/>
+          <circle cx="36.5" cy="48" r="1.6" fill="#fff"/><circle cx="56.5" cy="48" r="1.6" fill="#fff"/></g>
+          <ellipse cx="28" cy="59" rx="5" ry="3" fill="#ff9ebb" opacity=".8"/><ellipse cx="62" cy="59" rx="5" ry="3" fill="#ff9ebb" opacity=".8"/>
+          <path d="M40 61q5 5 10 0" fill="none" stroke="#4a2c3a" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M66 20l3 6 6 1-4.5 4 1 6-5.5-3-5.5 3 1-6-4.5-4 6-1z" fill="#ffcf3f" stroke="#4a2c3a" stroke-width="2" stroke-linejoin="round"/>
+        </g>
+      </defs>
+
+      <!-- wall -->
+      <rect width="1000" height="400" fill="url(#wallp)"/>
+      <rect y="322" width="1000" height="70" fill="url(#stripe)"/>
+      <rect y="318" width="1000" height="8" fill="#fff" stroke="#4a2c3a" stroke-width="3"/>
+      <!-- floor -->
+      <rect y="396" width="1000" height="250" fill="url(#tile)"/>
+      <rect y="396" width="1000" height="250" fill="url(#floorShade)"/>
+      <rect y="388" width="1000" height="12" fill="#f3a6c0" stroke="#4a2c3a" stroke-width="3"/>
+
+      <!-- window -->
+      <rect x="206" y="52" width="168" height="166" rx="12" fill="#fff" stroke="#4a2c3a" stroke-width="4"/>
+      <g clip-path="url(#winClip)">
+        <rect x="216" y="62" width="148" height="146" fill="url(#skyG)"/>
+        <g class="cloud"><ellipse cx="220" cy="92" rx="22" ry="10" fill="#fff"/><ellipse cx="236" cy="86" rx="14" ry="10" fill="#fff"/></g>
+        <path d="M216 208V168h20v-14h16v14h14v-30h26v30h10v-18h18v18h14v-10h16v50z" fill="#b8c7ef"/>
+        <rect x="270" y="146" width="18" height="6" fill="#f47725"/>
+        <text x="279" y="182" text-anchor="middle" font-family="Jua" font-size="11" fill="#fff">FAB</text>
+      </g>
+      <path d="M290 58v156M212 136h156" stroke="#4a2c3a" stroke-width="4"/>
+      <path d="M200 50q40 30 22 172M380 50q-40 30 -22 172" fill="#ffb3c8" stroke="#4a2c3a" stroke-width="3" opacity=".9"/>
+
+      <!-- hackathon poster -->
+      <g transform="rotate(-3 470 140)">
+        <rect x="418" y="66" width="104" height="146" rx="6" fill="#fff" stroke="#4a2c3a" stroke-width="3"/>
+        <rect x="418" y="66" width="104" height="40" rx="6" fill="url(#skG)" stroke="#4a2c3a" stroke-width="3"/>
+        <text x="470" y="84" text-anchor="middle" font-family="Jua" font-size="12" fill="#fff">SK hynix</text>
+        <text x="470" y="100" text-anchor="middle" font-family="Jua" font-size="12" fill="#fff">AI HACKATHON</text>
+        <text x="470" y="136" text-anchor="middle" font-family="Jua" font-size="26" fill="#4a2c3a">2026</text>
+        <text x="470" y="160" text-anchor="middle" font-family="Jua" font-size="12" fill="#f47725">SHOW &amp; PROVE</text>
+        <text x="470" y="194" text-anchor="middle" font-family="Jua" font-size="11" fill="#7a5566">11.11 COEX</text>
+        <circle cx="470" cy="70" r="5" fill="#ff8fab" stroke="#4a2c3a" stroke-width="2"/>
+      </g>
+
+      <!-- calendar -->
+      <rect x="870" y="70" width="84" height="94" rx="8" fill="#fff" stroke="#4a2c3a" stroke-width="3"/>
+      <rect x="870" y="70" width="84" height="26" rx="8" fill="#ff8fab" stroke="#4a2c3a" stroke-width="3"/>
+      <text x="912" y="89" text-anchor="middle" font-family="Jua" font-size="14" fill="#fff">SEP</text>
+      <text x="912" y="134" text-anchor="middle" font-family="Jua" font-size="34" fill="#4a2c3a">28</text>
+      <text x="912" y="154" text-anchor="middle" font-family="Jua" font-size="11" fill="#ea002c">제출하는 날 ♥</text>
+      <circle cx="890" cy="70" r="4" fill="#4a2c3a"/><circle cx="934" cy="70" r="4" fill="#4a2c3a"/>
+
+      <!-- rug & plant -->
+      <ellipse cx="520" cy="540" rx="200" ry="58" fill="#cfe9ff" stroke="#4a2c3a" stroke-width="4"/>
+      <ellipse cx="520" cy="540" rx="170" ry="44" fill="none" stroke="#fff" stroke-width="4" stroke-dasharray="10 10"/>
+      <g transform="translate(542 350)">
+        <path d="M18 20q-24-18-10-36q8 14 10 36zM20 20q6-30 26-30q-6 22-26 30zM18 20q-10-20 4-34" fill="#7fd6a8" stroke="#4a2c3a" stroke-width="3" stroke-linejoin="round"/>
+        <path d="M4 20h32l-5 32h-22z" fill="#ffb3c8" stroke="#4a2c3a" stroke-width="3" stroke-linejoin="round"/>
+      </g>
+    </svg>
+    <div id="objs"></div>
+    <div id="hero" class="walk">
+      <div class="bubble" id="bubble"></div>
+      <div class="flip">
+        <svg viewBox="0 0 90 130" width="90" height="130" aria-hidden="true">
+          <ellipse cx="45" cy="126" rx="24" ry="5" fill="#4a2c3a" opacity=".15"/>
+          <rect class="legL" x="31" y="98" width="11" height="25" rx="5.5" fill="#5a4a7a" stroke="#4a2c3a" stroke-width="3"/>
+          <rect class="legR" x="48" y="98" width="11" height="25" rx="5.5" fill="#5a4a7a" stroke="#4a2c3a" stroke-width="3"/>
+          <g class="bodyg">
+            <ellipse cx="20" cy="90" rx="7" ry="11" fill="#f47725" stroke="#4a2c3a" stroke-width="3" transform="rotate(20 20 90)"/>
+            <ellipse cx="70" cy="90" rx="7" ry="11" fill="#f47725" stroke="#4a2c3a" stroke-width="3" transform="rotate(-20 70 90)"/>
+            <path d="M22 106Q19 74 45 72Q71 74 68 106Z" fill="#f47725" stroke="#4a2c3a" stroke-width="3" stroke-linejoin="round"/>
+            <rect x="36" y="86" width="18" height="12" rx="3" fill="#fff" stroke="#4a2c3a" stroke-width="2"/>
+            <text x="45" y="96" text-anchor="middle" font-family="Jua" font-size="9" fill="#ea002c">AI</text>
+            <use href="#headArt"/>
+          </g>
+        </svg>
+      </div>
+    </div>
+  </div>
+</main>
+<div id="hint">클릭·탭으로 이동 · 방향키/WASD · Space로 조사 · 반짝이는 <b>!</b> 6개를 찾아줘</div>
+
+<!-- project dialog -->
+<div class="overlay hidden" id="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+  <div class="win" id="mWin">
+    <div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span class="t" id="mBar"></span><button class="x" id="mClose" aria-label="닫기">×</button></div>
+    <div class="win-body">
+      <div class="tag" id="mTag"></div>
+      <h2 id="mTitle"></h2>
+      <p class="sub" id="mSub"></p>
+      <p class="meta" id="mMeta"></p>
+      <div class="stats" id="mStats"></div>
+      <p class="body" id="mBody"></p>
+      <ul class="points" id="mPoints"></ul>
+      <p class="note" id="mNote"></p>
+      <div class="actions">
+        <a class="btn" id="mLink" target="_blank" rel="noopener"></a>
+        <button class="btn primary" id="mCollect"></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- title -->
+<div class="overlay" id="title">
+  <div class="title-card">
+    <h1 class="logo" aria-label="나연이의 미니룸"></h1>
+    <div class="edition">✿ <b>SK hynix AI Hackathon 2026</b> Edition ✿</div>
+    <p class="pitch">방 안에 숨은 물건 6개를 조사하면 제 프로젝트가 <b>다이(Die)</b>로 떨어져요.<br>12장을 모아 <b>HBM 12단</b>을 쌓아주세요!</p>
+    <div class="loader"><i id="ldBar"></i><span id="ldTxt">Loading... 0%</span></div>
+    <button class="btn primary" id="startBtn" disabled>START ▶</button>
+    <button class="skip" id="skipBtn">바쁘신가요? 결과부터 보기 →</button>
+  </div>
+</div>
+
+<!-- ending -->
+<div class="overlay hidden" id="ending" role="dialog" aria-modal="true" aria-labelledby="eTitle">
+  <div class="win end" style="--c:var(--gold)">
+    <div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span class="t">STAGE CLEAR ★ Yield 100%</span><button class="x" id="eClose" aria-label="방으로 돌아가기">×</button></div>
+    <div class="win-body">
+      <div class="end-grid">
+        <div class="stackwrap" id="stack3d"></div>
+        <div>
+          <div class="tag"><b>HBM 12-Hi</b> High-Bandwidth Me</div>
+          <h2 id="eTitle">적층 완료!</h2>
+          <p class="sub" style="margin-bottom:0">AI를 도구 삼아, 추측 대신 측정으로, 끝까지 푸는 사람.</p>
+          <ul class="proof" id="proof"></ul>
+        </div>
+      </div>
+      <p class="motto">자동화의 기준은 ‘내가 실행할 수 있는가’가 아니라<br><b>‘다른 사람이 다시 실행해도 같은 결과가 나오는가’</b>예요. — 고나연</p>
+      <div class="actions">
+        <a class="btn primary" href="https://profile.chelina.dev/" target="_blank" rel="noopener">포트폴리오 전체 보기 → <span class="url">profile.chelina.dev</span></a>
+        <a class="btn" href="https://github.com/shashax42" target="_blank" rel="noopener">GitHub</a>
+        <button class="btn" id="eAgain">방 구경하기</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const INK = '#4a2c3a';
+const S = (d) => `stroke="${INK}" stroke-width="${d||3}" stroke-linejoin="round"`;
+
+/* ------------ art ------------ */
+const ART = {
+  desk: `<svg viewBox="0 0 230 220" width="230" height="220">
+    <rect x="22" y="148" width="13" height="70" rx="4" fill="#e7b288" ${S()}/>
+    <rect x="195" y="148" width="13" height="70" rx="4" fill="#e7b288" ${S()}/>
+    <rect x="138" y="150" width="62" height="54" rx="6" fill="#f6c9a0" ${S()}/>
+    <rect x="160" y="170" width="18" height="6" rx="3" fill="${INK}"/>
+    <rect x="8" y="134" width="214" height="18" rx="7" fill="#f6c9a0" ${S()}/>
+    <rect x="102" y="110" width="26" height="26" fill="#d9d2e6" ${S()}/>
+    <rect x="84" y="126" width="62" height="10" rx="5" fill="#d9d2e6" ${S()}/>
+    <rect x="36" y="8" width="158" height="108" rx="12" fill="#fff" ${S(4)}/>
+    <rect x="47" y="19" width="136" height="84" rx="5" fill="#2d2140"/>
+    <path d="M62 64v-18a12 12 0 0 1 24 0v18l-4-4-4 4-4-4-4 4-4-4z" fill="#fff"/>
+    <circle cx="70" cy="47" r="2.5" fill="#2d2140"/><circle cx="78" cy="47" r="2.5" fill="#2d2140"/>
+    <text x="96" y="45" font-family="Jua" font-size="15" fill="#ffd6e4">GhostINK</text>
+    <text x="96" y="62" font-family="Jua" font-size="10" fill="#9fe7c8">AWS → Azure</text>
+    <rect x="56" y="76" width="118" height="18" rx="9" fill="#b69cff"/>
+    <text x="115" y="89" text-anchor="middle" font-family="Jua" font-size="10" fill="#2d2140">설계 의도 보존 ✓ MCP</text>
+    <rect x="176" y="108" width="22" height="26" rx="5" fill="#ea002c" ${S()}/>
+    <path d="M198 114q10 0 8 10q-2 6-8 5" fill="none" ${S()}/>
+    <path d="M180 100q4-8 0-14M190 100q4-8 0-14" stroke="#c9b6c0" stroke-width="3" fill="none" stroke-linecap="round"/>
+  </svg>`,
+  rack: (() => {
+    let u = '';
+    for (let i = 0; i < 6; i++) {
+      const y = 30 + i * 35;
+      u += `<rect x="20" y="${y}" width="90" height="27" rx="4" fill="#4a3d6e" ${S(2.5)}/>
+        <circle class="led" cx="32" cy="${y+13.5}" r="4" fill="#5cf2a9"/>
+        <circle class="led d${1+i%3}" cx="45" cy="${y+13.5}" r="4" fill="${i%2?'#ffcf3f':'#5cf2a9'}"/>
+        <path d="M60 ${y+9}h40M60 ${y+14}h40M60 ${y+19}h40" stroke="#6f62a0" stroke-width="2.5"/>`;
+    }
+    return `<svg viewBox="0 0 130 270" width="130" height="270">
+      <rect x="10" y="10" width="110" height="252" rx="10" fill="#6b5b95" ${S(4)}/>
+      <path d="M30 20h70" stroke="#8b7cc0" stroke-width="3" stroke-linecap="round"/>
+      ${u}
+      <rect x="26" y="238" width="78" height="18" rx="5" fill="#ffd6e4" ${S(2.5)}/>
+      <text x="65" y="251" text-anchor="middle" font-family="Jua" font-size="11" fill="${INK}">HOMELAB ♥</text>
+    </svg>`;
+  })(),
+  tv: `<svg viewBox="0 0 180 214" width="180" height="214">
+    <path d="M70 20l-18-18M110 20l18-18" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>
+    <rect x="12" y="18" width="156" height="118" rx="14" fill="#3b2530" ${S(4)}/>
+    <rect x="23" y="29" width="134" height="96" rx="7" fill="#10231e"/>
+    <text x="30" y="44" font-family="Jua" font-size="10" fill="#9ff">STOCK BRIDGE · LIVE</text>
+    <g fill="#3ccf91"><rect x="34" y="84" width="6" height="18"/><rect x="50" y="76" width="6" height="16"/><rect x="82" y="66" width="6" height="18"/><rect x="114" y="54" width="6" height="16"/></g>
+    <g fill="#ff6b8b"><rect x="66" y="80" width="6" height="12"/><rect x="98" y="70" width="6" height="12"/></g>
+    <polyline class="chartline" points="30,100 50,88 66,92 84,74 100,80 118,58 150,48" fill="none" stroke="#5cf2a9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="23" y="108" width="134" height="17" fill="#1f3b33"/>
+    <text x="90" y="120" text-anchor="middle" font-family="Jua" font-size="10" fill="#ffd166">▲ 랭킹 쿼리 1,500ms → 4ms</text>
+    <rect x="80" y="136" width="20" height="12" fill="#d9d2e6" ${S()}/>
+    <rect x="10" y="148" width="160" height="56" rx="9" fill="#bff0e0" ${S(3.5)}/>
+    <path d="M90 152v48" stroke="${INK}" stroke-width="3"/>
+    <circle cx="80" cy="176" r="4" fill="${INK}"/><circle cx="100" cy="176" r="4" fill="${INK}"/>
+    <rect x="22" y="202" width="10" height="10" fill="${INK}"/><rect x="148" y="202" width="10" height="10" fill="${INK}"/>
+  </svg>`,
+  frame: `<svg viewBox="0 0 196 146" width="196" height="146">
+    <path d="M98 -26L40 8M98 -26L156 8" stroke="${INK}" stroke-width="2"/><circle cx="98" cy="-26" r="5" fill="#ffcf3f" ${S(2)}/>
+    <rect x="4" y="6" width="188" height="136" rx="10" fill="#e3a36f" ${S(4)}/>
+    <rect x="16" y="18" width="164" height="112" rx="4" fill="#1b1830"/>
+    <text x="24" y="34" font-family="Jua" font-size="11" fill="#ff9ec0">Nebula · Grafana</text>
+    <path d="M34 98a26 26 0 0 1 52 0" fill="none" stroke="#3a3558" stroke-width="9" stroke-linecap="round"/>
+    <path d="M34 98a26 26 0 0 1 36-24" fill="none" stroke="#f47725" stroke-width="9" stroke-linecap="round"/>
+    <text x="60" y="100" text-anchor="middle" font-family="Jua" font-size="15" fill="#fff">-40%</text>
+    <text x="60" y="118" text-anchor="middle" font-family="Jua" font-size="9" fill="#9a93c7">운영 비용</text>
+    <g fill="#7ad3ff"><rect x="104" y="92" width="10" height="24"/><rect x="118" y="76" width="10" height="40"/><rect x="132" y="84" width="10" height="32"/><rect x="146" y="64" width="10" height="52"/><rect x="160" y="70" width="10" height="46"/></g>
+    <path d="M104 52h66" stroke="#3a3558" stroke-width="2" stroke-dasharray="4 4"/>
+    <text x="104" y="48" font-family="Jua" font-size="9" fill="#5cf2a9">SLO ✓</text>
+  </svg>`,
+  blocks: `<svg viewBox="0 0 136 130" width="136" height="130">
+    <ellipse cx="68" cy="124" rx="60" ry="6" fill="${INK}" opacity=".12"/>
+    <g font-family="Jua" text-anchor="middle" font-size="15" fill="${INK}">
+      <rect x="14" y="4" width="0" height="0"/>
+      <rect x="18" y="66" width="10" height="8" rx="2" fill="#ffd166" ${S(2.5)}/><rect x="42" y="66" width="10" height="8" rx="2" fill="#ffd166" ${S(2.5)}/>
+      <rect x="10" y="74" width="52" height="48" rx="7" fill="#ffd166" ${S()}/><text x="36" y="104">TF</text>
+      <rect x="84" y="66" width="10" height="8" rx="2" fill="#7ad3ff" ${S(2.5)}/><rect x="108" y="66" width="10" height="8" rx="2" fill="#7ad3ff" ${S(2.5)}/>
+      <rect x="74" y="74" width="52" height="48" rx="7" fill="#7ad3ff" ${S()}/><text x="100" y="104">K8s</text>
+      <rect x="48" y="24" width="10" height="8" rx="2" fill="#ff8fab" ${S(2.5)}/><rect x="78" y="24" width="10" height="8" rx="2" fill="#ff8fab" ${S(2.5)}/>
+      <rect x="36" y="32" width="64" height="44" rx="7" fill="#ff8fab" ${S()}/><text x="68" y="60">IaC</text>
+      <rect x="54" y="0" width="28" height="32" rx="6" fill="#bff0e0" ${S()}/><text x="68" y="22" font-size="14">✓</text>
+    </g>
+  </svg>`,
+  trophy: `<svg viewBox="0 0 124 234" width="124" height="234">
+    <rect x="6" y="6" width="112" height="222" rx="10" fill="#f6c9a0" ${S(4)}/>
+    <rect x="16" y="16" width="92" height="150" rx="5" fill="#e6f6ff" ${S(2.5)}/>
+    <path d="M16 72h92M16 122h92" stroke="${INK}" stroke-width="3"/>
+    <path d="M22 24l14 40M30 24l14 40" stroke="#fff" stroke-width="4" opacity=".8"/>
+    <path d="M46 26h32v10q0 20-16 22q-16-2-16-22z" fill="#ffcf3f" ${S(2.5)}/>
+    <path d="M46 32q-9 0-8 8q1 7 10 7M78 32q9 0 8 8q-1 7-10 7" fill="none" ${S(2.5)}/>
+    <rect x="58" y="57" width="8" height="7" fill="#ffcf3f" ${S(2)}/><rect x="48" y="64" width="28" height="8" rx="2" fill="#ffcf3f" ${S(2)}/>
+    <text x="62" y="44" text-anchor="middle" font-family="Jua" font-size="10" fill="${INK}">BEST</text>
+    <path d="M34 80l6 16M46 80l-6 16M78 80l6 16M90 80l-6 16" stroke="#ff8fab" stroke-width="4"/>
+    <circle cx="40" cy="104" r="11" fill="#ffcf3f" ${S(2.5)}/><text x="40" y="108" text-anchor="middle" font-family="Jua" font-size="11">1</text>
+    <circle cx="84" cy="104" r="11" fill="#e8c9a8" ${S(2.5)}/><text x="84" y="108" text-anchor="middle" font-family="Jua" font-size="11">4</text>
+    <rect x="22" y="132" width="36" height="26" rx="4" fill="#cfe9ff" ${S(2.5)}/><text x="40" y="150" text-anchor="middle" font-family="Jua" font-size="10">AZ-900</text>
+    <rect x="64" y="132" width="36" height="26" rx="4" fill="#e3d7ff" ${S(2.5)}/><text x="82" y="150" text-anchor="middle" font-family="Jua" font-size="10">SC-900</text>
+    <rect x="16" y="176" width="92" height="42" rx="6" fill="#e7b288" ${S(3)}/>
+    <rect x="50" y="194" width="24" height="6" rx="3" fill="${INK}"/>
+  </svg>`,
+};
+
+/* ------------ content ------------ */
+const ITEMS = [
+  { id:'ghost', art:'desk', x:290, y:470, w:230, spot:[300,512], z:470, color:'#b69cff', label:'반짝이는 모니터',
+    bar:'GhostINK.exe', tagNo:'인재상 01', tag:'AI 트렌드에 민감한 사람',
+    title:'GhostINK', sub:'클라우드 설계 "철학"을 번역하는 AI Agent',
+    meta:'개인 프로젝트 · 2026.05 · 3일 만에 구축',
+    stats:[['70%↓','설계 시간'],['65%↓','리서치 리소스'],['80%↓','API 운영 비용']],
+    body:'AWS↔Azure 마이그레이션에서 서비스를 1:1로 바꿔 끼우는 대신, 원래 아키텍처의 설계 의도를 읽고 타깃 클라우드의 설계 원칙에 맞춰 다시 짜주는 AI Agent 플랫폼이에요.',
+    points:['MCP로 최신 클라우드 보안 기준과 벤더 공식 문서를 참조해 LLM의 지식 한계를 보완',
+            '평가 기준을 혼자 정하지 않고 AWS SA 멘토에게 검증 방식을 반복 자문해서 ① 원 설계 의도를 보존했는지 ② 현업에서 실제로 그렇게 설계하는지로 재정의했어요'],
+    link:['ghost-ink.chelina.dev ↗','https://ghost-ink.chelina.dev/'] },
+  { id:'stock', art:'tv', x:800, y:474, w:180, spot:[790,528], z:474, color:'#3ccf91', label:'주식 전광판 TV',
+    bar:'StockBridge — LIVE', tagNo:'인재상 02', tag:'문제를 풀어내는 사람',
+    title:'Stock Bridge', sub:'장애가 나도 멈추지 않는 하이브리드 트레이딩 플랫폼',
+    meta:'2인 · Architect / PM / Backend / DevOps · 2026.04~ 운영·개선 중',
+    stats:[['1,500→4ms','랭킹 쿼리'],['5단계','시세 폴백 체인'],['4계층','네트워크 분리']],
+    body:'금융 보안 가이드라인 아래에서 실시간성·정합성·보안 요건을 동시에 만족해야 하는 조건으로 설계하고 구축했어요.',
+    points:['상위 데이터 소스가 끊겨도 서비스는 멈추지 않고 품질만 단계적으로 낮추는 5단계 폴백',
+            '파드 간 시계 차이로 상태가 어긋나는 걸 발견하고, Redis 서버 시각을 기준으로 도는 분산 서킷브레이커를 구현',
+            '증권사 WebSocket → Redis Streams → PostgreSQL 파이프라인은 컨슈머가 죽어도 유실·중복 없이 적재돼요',
+            '실운영 규모(2,700종목·67.5만 행)로 벤치마크해 보니 trigram 인덱스가 오히려 더 느렸어요. 그래서 채택하지 않았어요 — 추측 대신 측정',
+            'Site-to-Site VPN + SRX300 UTM으로 온프레미스↔AWS를 연결하고, Helm·ArgoCD로 배포 이력을 Git에서 추적'],
+    link:['stock-bridge.chelina.dev ↗','https://stock-bridge.chelina.dev'] },
+  { id:'trophy', art:'trophy', x:938, y:492, w:124, spot:[900,560], z:492, color:'#f47725', label:'트로피 장식장',
+    bar:'Trophy Case', tagNo:'인재상 03', tag:'실력으로 증명할 사람',
+    title:'트로피 장식장', sub:'말솜씨보다 결과물로',
+    meta:'Awards · Certifications · AI 제품화',
+    stats:[['Best','AWS Cloud School'],['4th','HESH Makerthon'],['26%↑','UX 만족도 (GAN)']],
+    body:'GAN 캡스톤에서는 모델을 키우는 대신 고정된 하드웨어 안에서 어디까지가 한계인지 측정했어요. 이때부터 모델 성능뿐 아니라 추론 지연·자원 사용량·실패율까지 같이 보게 됐어요.',
+    points:['🏆 Best Project Award — AWS Cloud School (2024)',
+            '🥇 4th Prize — HESH SW Makerthon (2020)',
+            '📜 Microsoft AZ-900 · SC-900',
+            '🎨 OpenCV·StyleGAN 기반 캐리커처 생성 플랫폼 — 4인, AI 개발 & 부리더',
+            '🎓 AWS Cloud School(AWS Korea) · SeSAC Hybrid Cloud DataOps · WISET 멘토링 2회'],
+    link:['profile.chelina.dev ↗','https://profile.chelina.dev/'] },
+  { id:'rack', art:'rack', x:92, y:486, w:130, spot:[170,530], z:486, color:'#6b8cff', label:'폐서버 랙',
+    bar:'homelab — ssh', tagNo:'핵심가치', tag:'ZERO-BASE · 스펙보다 직접 해본 것',
+    title:'Hybrid Homelab', sub:'폐서버로 만든 온프레미스 × AWS 테스트베드',
+    meta:'2인 · PM / Architect · 2025.05~ 1년 넘게 운영 중',
+    stats:[['1년+','직접 운영'],['100%','이미지 스캔 커버리지']],
+    body:'중고·폐서버에 Proxmox·Debian을 올리고 AWS와 연결했어요. 아키텍처 판단을 배포 전에 먼저 검증해 보는 테스트베드예요.',
+    points:['구축 한 달 뒤 "이 이미지는 어떤 검증을 거쳤지?"를 추적할 수 없게 되자, 자원을 목록이 아닌 수명주기로 재정의',
+            'Harbor + AWS ECR 연동으로 이미지 취약점 스캔을 배포 전 필수 단계로 구성',
+            '폐서버에 Gemini·OpenClaw 기반 업무 자동화 파이프라인을 올리고, 진행 상황을 보는 중앙 트래킹 플랫폼도 개발',
+            '데이터 접근 패턴을 분석해 S3 Lifecycle 정책으로 보관 비용 비효율 제거'],
+    link:['lucia.land ↗','https://www.lucia.land/'] },
+  { id:'nebula', art:'frame', x:660, y:214, w:196, spot:[650,480], z:5, color:'#ff8fab', label:'대시보드 액자',
+    bar:'Nebula Monitoring', tagNo:'핵심가치', tag:'REAL BUSINESS · 비용과 리스크의 언어',
+    title:'Nebula Platform', sub:'더 붙이지 않고, 덜어내서 좋아진 인프라',
+    meta:'개인 프로젝트 · 2025.11–12',
+    stats:[['40%↓','운영 비용*'],['80%↑','프로세스 속도']],
+    body:'모니터링 도구를 추가하기 전에 운영 비용부터 봤어요. CPU·메모리가 아니라 서비스 가용성과 장애 대응에 직결되는 지표를 중심으로 Prometheus·Grafana를 다시 설계했어요.',
+    points:['서버·서비스·환경별 태그 체계를 정리하고 지표별 수집 주기·보존 범위·집계 수준을 분리',
+            '무제한 보관이 저장·조회 비용을 키운다고 판단해서 보존 정책을 재구성',
+            'Secrets Scanning·SBOM·Image Signing을 못 통과하면 배포가 멈춰요 — 보안을 담당자의 주의력이 아니라 파이프라인의 기본값으로'],
+    note:'* 실 청구액이 아니라 저장량·보존기간 기준으로 산정한 값이에요.',
+    link:['GitHub ↗','https://github.com/shashax42/Nebula-Platform'] },
+  { id:'blocks', art:'blocks', x:430, y:598, w:136, spot:[520,600], z:598, color:'#ffc93c', label:'IaC 블록 장난감',
+    bar:'terraform apply', tagNo:'핵심가치', tag:'SHOW & PROVE · 제대로 작동하는 결과물',
+    title:'Cloud2Scape', sub:'사람마다 달랐던 구축을 코드 한 벌로',
+    meta:'4인 · 인프라 리드 / DevOps · 2024.11–12',
+    stats:[['4h→30m','세팅 시간 (92%↓)'],['60%↑','파트너 온보딩 속도']],
+    body:'팀원마다 결과와 소요 시간이 달랐을 때 숙련도 차이로 넘기지 않고 절차를 다시 뜯어봤어요.',
+    points:['Vagrant·Kubespray로 VM·네트워크·설치 순서를 표준화하고 Terraform IaC로 전환',
+            'multi-tier VPC와 Internal Subnet으로 DB·애플리케이션 워크로드를 공용 인터넷에서 분리',
+            'Ansible로 온프레미스↔클라우드 구성 정합성을 강제하고 반복 수작업을 코드로 대체'],
+    link:['GitHub ↗','https://github.com/cloud2scape'] },
+];
+
+/* ------------ state ------------ */
+const $ = (id) => document.getElementById(id);
+const stage = $('stage'), hero = $('hero'), bubble = $('bubble');
+const W = 1000, FLOOR_TOP = 408, FLOOR_BOT = 628;
+const P = { x:520, y:560, tx:null, ty:null, pending:null };
+const keys = new Set();
+const done = new Set();
+const order = [];
+let scale = 1, paused = true, near = null, sound = true, actx = null;
+
+/* ------------ build ------------ */
+const logo = document.querySelector('.logo');
+const LOGO = '나연이의 미니룸', LC = ['#ff8fab','#ffc93c','#7ad3ff','#3ccf91','#b69cff','#ff8fab','#f47725','#7ad3ff'];
+[...LOGO].forEach((ch, i) => {
+  const s = document.createElement('span');
+  s.textContent = ch === ' ' ? ' ' : ch;
+  s.style.color = LC[i % LC.length];
+  s.style.animationDelay = (i * .08) + 's';
+  s.setAttribute('aria-hidden', 'true');
+  logo.appendChild(s);
+});
+
+const tower = $('tower');
+for (let i = 0; i < 12; i++) tower.appendChild(document.createElement('i'));
+
+const objs = $('objs');
+ITEMS.forEach((it) => {
+  const b = document.createElement('button');
+  b.className = 'obj';
+  b.style.left = it.x + 'px'; b.style.top = it.y + 'px'; b.style.zIndex = it.z;
+  b.setAttribute('aria-label', `${it.label} 조사하기 — ${it.title}`);
+  b.innerHTML = ART[it.art] + `<span class="marker">!</span><span class="label">${it.label}</span>`;
+  b.addEventListener('click', (e) => { e.stopPropagation(); if (paused) return; walkTo(it.spot[0], it.spot[1], it); });
+  it.el = b;
+  objs.appendChild(b);
+});
+
+/* ------------ fit ------------ */
+function fit() {
+  const vp = $('viewport').getBoundingClientRect();
+  scale = Math.min((vp.width - 16) / 1010, (vp.height - 20) / 660);
+  stage.style.transform = `translate(-50%,-50%) scale(${scale})`;
+}
+addEventListener('resize', fit); fit();
+if (matchMedia('(orientation:portrait) and (max-width:640px)').matches) $('hint').innerHTML = '가로로 돌리면 방이 더 크게 보여요 ↻ · 물건을 탭해서 조사';
+
+/* ------------ sound ------------ */
+function beep(notes) {
+  if (!sound) return;
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    let t = actx.currentTime;
+    notes.forEach(([f, d]) => {
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.type = 'square'; o.frequency.value = f;
+      g.gain.setValueAtTime(.06, t); g.gain.exponentialRampToValueAtTime(.001, t + d);
+      o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t + d);
+      t += d * .8;
+    });
+  } catch (_) {}
+}
+$('muteBtn').onclick = () => { sound = !sound; $('muteBtn').textContent = sound ? '♪' : '✕'; };
+
+/* ------------ movement ------------ */
+const clampX = (x) => Math.max(40, Math.min(W - 40, x));
+const clampY = (y) => Math.max(FLOOR_TOP, Math.min(FLOOR_BOT, y));
+
+function walkTo(x, y, item) { P.tx = clampX(x); P.ty = clampY(y); P.pending = item || null; say(null); }
+
+stage.addEventListener('pointerdown', (e) => {
+  if (paused || e.target.closest('.obj')) return;
+  const r = stage.getBoundingClientRect();
+  const x = (e.clientX - r.left) / scale, y = (e.clientY - r.top) / scale;
+  walkTo(x, y);
+  const t = document.createElement('div');
+  t.className = 'tap'; t.style.left = P.tx + 'px'; t.style.top = P.ty + 'px'; t.style.zIndex = 1;
+  stage.appendChild(t); setTimeout(() => t.remove(), 500);
+});
+
+const KMAP = { ArrowLeft:[-1,0], KeyA:[-1,0], ArrowRight:[1,0], KeyD:[1,0], ArrowUp:[0,-1], KeyW:[0,-1], ArrowDown:[0,1], KeyS:[0,1] };
+addEventListener('keydown', (e) => {
+  if (!$('modal').classList.contains('hidden')) { if (e.key === 'Escape') closeModal(); return; }
+  if (!$('ending').classList.contains('hidden')) { if (e.key === 'Escape') closeEnding(); return; }
+  if (paused) return;
+  if (KMAP[e.code]) { keys.add(e.code); P.tx = null; P.pending = null; say(null); e.preventDefault(); }
+  if ((e.code === 'Space' || e.code === 'Enter') && near && document.activeElement === document.body) { e.preventDefault(); openItem(near); }
+});
+addEventListener('keyup', (e) => keys.delete(e.code));
+
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(.12, (now - last) / 1000); last = now;
+  let vx = 0, vy = 0;
+  if (!paused) {
+    keys.forEach((k) => { vx += KMAP[k][0]; vy += KMAP[k][1]; });
+    if (!vx && !vy && P.tx !== null) {
+      const dx = P.tx - P.x, dy = P.ty - P.y, d = Math.hypot(dx, dy);
+      if (d < 5) {
+        P.tx = null;
+        if (P.pending) { const it = P.pending; P.pending = null; openItem(it); }
+      } else { vx = dx / d; vy = dy / d; }
+    }
+  }
+  const mag = Math.hypot(vx, vy);
+  const moving = mag > 0;
+  if (moving) {
+    const sp = 280;
+    P.x = clampX(P.x + vx / mag * sp * dt);
+    P.y = clampY(P.y + vy / mag * sp * dt * .8);
+    if (Math.abs(vx) > .2) hero.classList.toggle('left', vx < 0);
+  }
+  hero.classList.toggle('walk', moving);
+  hero.style.left = P.x + 'px'; hero.style.top = P.y + 'px'; hero.style.zIndex = Math.round(P.y);
+
+  let best = null, bd = 70;
+  ITEMS.forEach((it) => { const d = Math.hypot(it.spot[0] - P.x, it.spot[1] - P.y); if (d < bd) { bd = d; best = it; } });
+  if (best !== near) {
+    ITEMS.forEach((it) => it.el.classList.toggle('near', it === best));
+    near = best;
+    if (near && !paused && P.tx === null) say(done.has(near.id) ? '다시 볼래? Space!' : 'Space로 조사하기 ✦');
+    else if (!near && bubble.dataset.kind === 'near') say(null);
+    if (near) bubble.dataset.kind = 'near';
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+function say(text) {
+  bubble.classList.toggle('hidden', !text);
+  if (text) bubble.innerHTML = text;
+  bubble.dataset.kind = '';
+}
+
+/* ------------ dialog ------------ */
+let current = null;
+function openItem(it) {
+  current = it; paused = true; keys.clear();
+  $('mWin').style.setProperty('--c', it.color);
+  $('mBar').textContent = it.bar;
+  $('mTag').innerHTML = `<b>SK하이닉스가 찾는 ${it.tagNo}</b>${it.tag}`;
+  $('mTitle').textContent = it.title;
+  $('mSub').textContent = it.sub;
+  $('mMeta').textContent = it.meta;
+  $('mStats').innerHTML = it.stats.map(([a, b]) => `<div class="stat"><b>${a}</b><span>${b}</span></div>`).join('');
+  $('mBody').textContent = it.body;
+  $('mPoints').innerHTML = it.points.map((p) => `<li>${p}</li>`).join('');
+  $('mNote').textContent = it.note || '';
+  $('mLink').textContent = it.link[0]; $('mLink').href = it.link[1];
+  $('mCollect').textContent = done.has(it.id) ? '닫기' : `다이 획득! +2 ▸`;
+  $('modal').classList.remove('hidden');
+  $('mCollect').focus({ preventScroll:true });
+  beep([[660,.08],[880,.1]]);
+}
+function closeModal() { $('modal').classList.add('hidden'); paused = false; current = null; say(null); }
+$('mClose').onclick = closeModal;
+$('modal').addEventListener('click', (e) => { if (e.target.id === 'modal') closeModal(); });
+$('mCollect').onclick = () => {
+  const it = current;
+  if (!it || done.has(it.id)) { closeModal(); return; }
+  const from = $('mCollect').getBoundingClientRect();
+  closeModal();
+  collect(it, from);
+};
+
+function collect(it, from) {
+  done.add(it.id); order.push(it);
+  it.el.classList.add('done');
+  it.el.querySelector('.marker').textContent = '✓';
+  const n = done.size * 2;
+  const slots = tower.children;
+  [0, 1].forEach((k) => {
+    const slot = slots[n - 2 + k];
+    const to = slot.getBoundingClientRect();
+    const f = document.createElement('div');
+    f.className = 'fly'; f.style.background = it.color;
+    f.style.left = (from.left + from.width / 2 - 17) + 'px'; f.style.top = (from.top) + 'px';
+    document.body.appendChild(f);
+    const anim = f.animate([
+      { transform:'translate(0,0) scale(1.4) rotate(0)' },
+      { transform:`translate(${to.left - from.left - from.width / 2 + 17}px, ${to.top - from.top - 4}px) scale(.8) rotate(360deg)` },
+    ], { duration:700 + k * 150, easing:'cubic-bezier(.5,-.3,.3,1)' });
+    anim.onfinish = () => { f.remove(); slot.style.background = it.color; };
+  });
+  setTimeout(() => { $('cnt').textContent = n; }, 800);
+  beep([[523,.08],[659,.08],[784,.08],[1047,.16]]);
+  const left = 6 - done.size;
+  say(left ? `다이 2장 적층! 앞으로 ${left}개 남았어 ✦` : 'HBM 12단 완성이다!! 🎉');
+  if (!left) setTimeout(showEnding, 1300);
+}
+
+/* ------------ ending ------------ */
+const PROOF = [
+  ['AI 트렌드에 민감한 사람', 'MCP 기반 AI Agent를 3일 만에 만들어 설계 시간 70%↓ (GhostINK)'],
+  ['문제를 풀어내는 사람', '5단계 폴백·분산 서킷브레이커로 장애에도 멈추지 않는 서비스 (Stock Bridge)'],
+  ['실력으로 증명할 사람', 'AWS Cloud School Best Project · 추측 대신 측정해서 1,500ms → 4ms'],
+  ['ZERO-BASE', '폐서버에서 시작한 하이브리드 홈랩을 1년 넘게 직접 운영'],
+  ['REAL BUSINESS', '금융 보안 요건의 하이브리드 망 설계, 운영 비용 40%↓ (Nebula)'],
+  ['SHOW & PROVE', '누가 실행해도 같은 결과 — IaC로 세팅 4시간 → 30분 (Cloud2Scape)'],
+];
+function isoLayer(cx, cy, hw, hh, t, fill, side1, side2) {
+  return `<path d="M${cx-hw} ${cy}L${cx} ${cy+hh}V${cy+hh+t}L${cx-hw} ${cy+t}Z" fill="${side1}" ${S(2)}/>
+    <path d="M${cx} ${cy+hh}L${cx+hw} ${cy}V${cy+t}L${cx} ${cy+hh+t}Z" fill="${side2}" ${S(2)}/>
+    <path d="M${cx} ${cy-hh}L${cx+hw} ${cy}L${cx} ${cy+hh}L${cx-hw} ${cy}Z" fill="${fill}" ${S(2)}/>`;
+}
+function shade(hex, amt) {
+  const n = parseInt(hex.slice(1), 16);
+  const c = [n >> 16, (n >> 8) & 255, n & 255].map((v) => Math.max(0, Math.min(255, Math.round(v * amt))));
+  return '#' + c.map((v) => v.toString(16).padStart(2, '0')).join('');
+}
+function renderStack() {
+  const cx = 130, base = 250;
+  const seq = (order.length === 6 ? order : ITEMS);
+  let g = `<g class="ly" style="animation-delay:0s">${isoLayer(cx, base, 110, 55, 16, '#d9d2e6', '#b3a8c6', '#c7bdd8')}</g>`;
+  for (let i = 0; i < 12; i++) {
+    const it = seq[Math.floor(i / 2)];
+    const y = base - 26 - i * 13;
+    g += `<g class="ly" style="animation-delay:${.25 + i * .12}s">${isoLayer(cx, y, 84, 42, 9, it.color, shade(it.color, .75), shade(it.color, .88))}</g>`;
+  }
+  const top = base - 26 - 11 * 13;
+  let tsv = '';
+  for (let a = -2; a <= 2; a++) for (let b = -1; b <= 1; b++) tsv += `<circle cx="${cx + a * 16 + b * 16}" cy="${top + a * -8 + b * 8}" r="2.4" fill="#fff" opacity=".85"/>`;
+  g += `<g class="ly" style="animation-delay:1.8s">${tsv}<text x="${cx}" y="${top - 52}" text-anchor="middle" font-family="Jua" font-size="16" fill="${INK}">12-Hi ✦</text></g>`;
+  $('stack3d').innerHTML = `<svg viewBox="0 0 260 330" role="img" aria-label="프로젝트 6개로 쌓은 HBM 12단 스택">${g}</svg>
+    <p style="margin:-4px 0 0;text-align:center;font-size:12px;color:var(--ink-soft)">Core Die ×12 = 프로젝트 6개<br>Base Die = 컴퓨터공학 + AWS Cloud School</p>`;
+  $('proof').innerHTML = PROOF.map(([a, b], i) =>
+    `<li><span class="chk" style="background:${ITEMS[i].color}">✓</span><span><b>${a}</b> — ${b}</span></li>`).join('');
+}
+function showEnding() {
+  paused = true; keys.clear();
+  renderStack();
+  $('ending').classList.remove('hidden');
+  beep([[523,.1],[659,.1],[784,.1],[1047,.1],[784,.1],[1047,.3]]);
+  const cols = ['#ff8fab','#ffc93c','#7ad3ff','#3ccf91','#b69cff','#f47725'];
+  for (let i = 0; i < 60; i++) {
+    const c = document.createElement('div');
+    c.className = 'confetti';
+    c.style.left = Math.random() * 100 + 'vw';
+    c.style.background = cols[i % cols.length];
+    c.style.animationDuration = (1.8 + Math.random() * 1.8) + 's';
+    c.style.animationDelay = Math.random() * .6 + 's';
+    document.body.appendChild(c);
+    setTimeout(() => c.remove(), 4500);
+  }
+}
+function closeEnding() { $('ending').classList.add('hidden'); paused = false; say('자유롭게 둘러봐! 물건을 누르면 다시 볼 수 있어'); }
+$('eClose').onclick = closeEnding; $('eAgain').onclick = closeEnding;
+
+/* ------------ title ------------ */
+let pct = 0;
+const ld = setInterval(() => {
+  pct = Math.min(100, pct + 4 + Math.random() * 9);
+  $('ldBar').style.width = pct + '%';
+  $('ldTxt').textContent = pct < 100 ? `Loading... ${Math.floor(pct)}%` : '준비 완료! ♥';
+  if (pct >= 100) { clearInterval(ld); $('startBtn').disabled = false; $('startBtn').focus({ preventScroll:true }); }
+}, 70);
+$('startBtn').onclick = () => {
+  $('title').classList.add('hidden'); paused = false; beep([[784,.08],[1047,.12]]);
+  say('안녕! 나연이의 미니룸이야 ✿<br>반짝이는 <b>!</b> 물건을 눌러서 조사해 줘');
+  setTimeout(() => { if (bubble.dataset.kind === '' && done.size === 0 && $('modal').classList.contains('hidden')) say(null); }, 5000);
+};
+$('skipBtn').onclick = () => {
+  $('title').classList.add('hidden');
+  ITEMS.forEach((it, i) => {
+    if (done.has(it.id)) return;
+    done.add(it.id); order.push(it); it.el.classList.add('done'); it.el.querySelector('.marker').textContent = '✓';
+    tower.children[i * 2].style.background = it.color; tower.children[i * 2 + 1].style.background = it.color;
+  });
+  $('cnt').textContent = 12;
+  showEnding();
+};
+</script>
+</body>
+</html>
